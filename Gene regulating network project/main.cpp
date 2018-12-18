@@ -134,6 +134,8 @@ void addinteraction(std::vector<std::vector<int> > &interaction){
             if(numb_of_connections<=numbgenes)
                 break;
         }
+        if(numb_of_connections<0)
+            throw std::logic_error("number of connectios is negative \n");
         
         // ADD THE NEW INTERACTIONS TO THE MODEL ************************************
         std::vector<int> tmpinteract(4,-1);
@@ -148,6 +150,8 @@ void addinteraction(std::vector<std::vector<int> > &interaction){
                 if(attachnode != tmpinteract[0] && attachnode != tmpinteract[1] && attachnode != tmpinteract[2] && attachnode != tmpinteract[3])
                     break;
             }
+            if(attachnode>=nodeDegree.size() || attachnode<0)
+                throw std::logic_error("id-value of connection node is invalid \n");
             
             // add interaction to the matrix
             std::vector<int> newinteraction = {numbgenes,attachnode};
@@ -247,7 +251,7 @@ int main() {
             for(int j = 0; j<2;++j){
                 std::cout<<interaction[i][j]<<", ";
             }
-            std::cout<<"\n "; 
+            std::cout<<"\n ";
         }
         
     }
