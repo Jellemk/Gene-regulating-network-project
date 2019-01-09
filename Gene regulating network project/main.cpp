@@ -224,7 +224,7 @@ int main() {
         
         // CALCULATE THE FREQUENCIES OF EXPRESSION VALUES ***************************************************
         
-        std::vector<int> sumgenome(genome.size(),0);
+        std::vector<double> sumgenome(genome.size(),0);
         
         //count the total value of the genome of every individual and store in the sumgenome vector.
         for(int i = 0; i<genome.size();++i){
@@ -232,6 +232,15 @@ int main() {
                 sumgenome[i] += genome[i][j];
             }
         }
+        
+        //calculate the noise from the environment
+        std::normal_distribution<double> environment(0.0,1.0);
+        
+       for(int i =0; i<sumgenome.size();++i){
+           double noise = environment(rng);
+           sumgenome[i] = sumgenome[i] + noise;
+       }
+    
         
         
         // OUTPUT TO FILE **********************************************************
@@ -247,12 +256,12 @@ int main() {
             ofs<<i+1<<", "<<std::count(sumgenome.begin(),sumgenome.end(),i+1)<<"\n";
         }
         
-        for(int i = 0; i<interaction.size();++i){
-            for(int j = 0; j<2;++j){
-                std::cout<<interaction[i][j]<<", ";
-            }
-            std::cout<<"\n ";
-        }
+        //for(int i = 0; i<interaction.size();++i){
+        //    for(int j = 0; j<2;++j){
+        //        std::cout<<interaction[i][j]<<", ";
+        //    }
+        //    std::cout<<"\n ";
+        //}
         
     }
     catch(std::exception &fatalException){
