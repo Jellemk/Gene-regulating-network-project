@@ -14,11 +14,15 @@
 
 const int genomelength = 100;
 const int N = 100;
-const int Maxgeneration = 10;
+const int Maxgeneration = 2;
 const double mutationrate = 0.1;
 const double meanoffspring = 2.5;
 const double k = 1.0;
 
+struct Individual {
+    std::vector<int> genome;
+    std::vector<std::vector<int> > interaction;
+};
 
 void reproduction(std::vector<std::vector<int> > &genome){
     
@@ -187,14 +191,11 @@ int main() {
         std::clog<<"random seed : "<<seed<<"\n";
         rng.seed(seed);
         
+        std::vector<Individual> population;
+        
         // create matrix to store the genomes. Every row is the genome of a individual.
         std::vector<std::vector<int> > genome(N,std::vector<int>(genomelength,0));
         
-        //DETERMINE EDGE ARCHITECTURE *********************************************************************
-        // create matrix to store the interactions in
-        std::vector<std::vector<int> > interaction;
-        
-        addinteraction(interaction);
         
         // RANDOMLY ASSIGN THE VALUE (O OR 1) TO THE GENES. ***********************************************
         for(int i = 0; i<genome.size();++i){
@@ -207,6 +208,38 @@ int main() {
                     genome[i][j] = 1;
                 
             }
+        }
+        
+        //DETERMINE EDGE ARCHITECTURE *********************************************************************
+        // create matrix to store the interactions in
+        std::vector<std::vector<int> > interaction;
+        
+        addinteraction(interaction);
+        
+        // PUT THE GENOME VECTORS AND INTERACTIONS TO POPULATION STRUCT ************************************
+        for(int i = 0; i<genome.size();++i){
+            Individual dataindividual = {genome[i],interaction};
+            population.push_back(dataindividual);
+        }
+        
+        
+        for(int i = 0;i<genome.size();++i){
+            std::cout<<"individual  "<<i<<std::endl;
+            std::cout<<"genome = ";
+            for(int j = 0;j<genomelength;++j){
+                std::cout<<population[i].genome[j]<<", ";
+            }
+            std::cout<<"\n";
+            std::cout<<"interaction partners are: ";
+            for(int j = 0; j<population[i].interaction.size();++j){
+                for(int q = 0;q<2;++q){
+                    std::cout<<population[i].interaction[j][q]<<" - ";
+                }
+                std::cout<<"\n";
+            }
+            std::cout<<"\n";
+            std::cout<<"\n";
+            std::cout<<"\n";
         }
         
         // LET TE POPULATION EVOLVE BY CREATING NEW GENERATIONS ********************************************
