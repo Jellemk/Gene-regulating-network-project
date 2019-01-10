@@ -12,8 +12,8 @@
 #include <random>
 #include <fstream>
 
-const int genomelength = 100;
-const int N = 100;
+const int genomelength = 10;
+const int N = 10;
 const int Maxgeneration = 2;
 const double mutationrate = 0.1;
 const double meanoffspring = 2.5;
@@ -23,6 +23,48 @@ struct Individual {
     std::vector<int> genome;
     std::vector<std::vector<int> > interaction;
 };
+
+
+void reprotwo(std::vector<Individual> &population){
+    
+    //obtain seed from system clock
+    std::chrono::high_resolution_clock::time_point tp =
+    std::chrono::high_resolution_clock::now();
+    unsigned seed = static_cast<unsigned>(tp.time_since_epoch().count());
+    
+    // create and seed pseudo-random number generator
+    std::mt19937_64 rng;
+    // std::clog<<"random seed : "<<seed<<"\n";
+    rng.seed(seed);
+    
+    std::poisson_distribution<int> poisson(meanoffspring);
+    
+    std::vector<Individual> newpopulation;
+    
+    //check for every individual how many offspring they will produce.
+    for(int i = 0; i<population.size();++i){
+        
+        int event = poisson(rng);
+        
+        if(event>0){
+            Individual newindividual = {population[i].genome,population[i].interaction};
+            for(int j = 0; j<event;++j){
+                newpopulation.push_back(newindividual);
+            }
+        } else if (event < 0){
+            throw std::logic_error("value from poisson distribution is negative. \n");
+        }
+    }
+    //update population
+    population = newpopulation;
+}
+
+
+
+
+
+
+
 
 void reproduction(std::vector<std::vector<int> > &genome){
     
@@ -59,6 +101,44 @@ void reproduction(std::vector<std::vector<int> > &genome){
     //update genome matrix with newgenome matrix
     genome = newgenome;
 }
+
+
+void mutatwo(std::vector<Individual> &population){
+    //obtain seed from system clock
+    std::chrono::high_resolution_clock::time_point tp =
+    std::chrono::high_resolution_clock::now();
+    unsigned seed = static_cast<unsigned>(tp.time_since_epoch().count());
+    
+    // create and seed pseudo-random number generator
+    std::mt19937_64 rng;
+    // std::clog<<"random seed : "<<seed<<"\n";
+    rng.seed(seed);
+    
+    // flip value if mutation happens.
+    for(int i = 0; i<population.size();++i){
+        for(int j = 0; j<genomelength; ++j){
+            std::bernoulli_distribution biasedCoinFlip(mutationrate);
+            
+            if(biasedCoinFlip(rng)){
+                if(population[i].genome[j]==1){
+                    population[i].genome[j] = 0;
+                } else if (population[i].genome[j]==0){
+                    population[i].genome[j] = 1;
+                } else{
+                    throw std::logic_error("state of gene is neither 0 or 1. \n");
+                }
+            }
+            
+        }
+    }
+}
+
+
+
+
+
+
+
 
 
 void mutation(std::vector<std::vector<int> > &genome){
@@ -223,37 +303,28 @@ int main() {
         }
         
         
-        for(int i = 0;i<genome.size();++i){
-            std::cout<<"individual  "<<i<<std::endl;
-            std::cout<<"genome = ";
-            for(int j = 0;j<genomelength;++j){
-                std::cout<<population[i].genome[j]<<", ";
-            }
-            std::cout<<"\n";
-            std::cout<<"interaction partners are: ";
-            for(int j = 0; j<population[i].interaction.size();++j){
-                for(int q = 0;q<2;++q){
-                    std::cout<<population[i].interaction[j][q]<<" - ";
-                }
-                std::cout<<"\n";
-            }
-            std::cout<<"\n";
-            std::cout<<"\n";
-            std::cout<<"\n";
-        }
-        
         // LET TE POPULATION EVOLVE BY CREATING NEW GENERATIONS ********************************************
         //To get to a gaussian distribution, we need to let the population evolve...
         
         for(int genCount = 0; genCount<Maxgeneration; ++genCount){
             
             //create new offspring
-            reproduction(genome);
+            //reproduction(genome);
+            reprotwo(population);
             
             //look for mutations.
-            mutation(genome);
+            //mutation(genome);
+            mutatwo(population);
         }
-        
+        for(int i = 0; i<population.size();++i){
+            std::cout<<"individual  =  "<<i<<std::endl;
+            std::cout<<"genome = "<<std::endl;
+            for(int j = 0;j<genomelength;++j){
+                std::cout<<population[i].genome[j]<<", ";
+            }
+            std::cout<<"\n";
+            std::cout<<"\n";
+        }
         
         // CALCULATE THE FREQUENCIES OF EXPRESSION VALUES ***************************************************
         
