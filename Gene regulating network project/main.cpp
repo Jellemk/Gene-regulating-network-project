@@ -133,14 +133,6 @@ void mutatwo(std::vector<Individual> &population){
     }
 }
 
-
-
-
-
-
-
-
-
 void mutation(std::vector<std::vector<int> > &genome){
     
     
@@ -272,7 +264,7 @@ void nondInteraction(std::vector<Individual> &population, std::vector<double> &p
     
     //Calculate the additive part of phenotype the calculation
     for(int i = 0; i<population.size();++i){
-        for(int j = 0; j<genomelength;++j){
+        for(int j = 0; j<population[i].genome.size();++j){
             additive[i] += population[i].genome[j];
         }
     }
@@ -287,7 +279,7 @@ void nondInteraction(std::vector<Individual> &population, std::vector<double> &p
         for(int j = 0; j<population[i].interaction.size();++j){
             int geneOne = population[i].interaction[j][0];
             int geneTwo = population[i].interaction[j][1];
-            //In this function you apply the epistasis rule to the model.
+            //BELOW IS OPTION TO CHOOSE WHICH RULE YOU WANT TO APPLY. !!!!!!!!!!!!!!!!!!! ONLY SELECT ONE.
             epistasis[i] += (population[i].genome[geneOne]*population[i].genome[geneTwo]);              //multiplication
             //epistasis[i] += ((population[i].genome[geneOne]+population[i].genome[geneTwo])/2);          // average
             //if(population[i].genome[geneOne] == 1 || population[i].genome[geneTwo] == 1) epistasis[i]+=1.0;                                                             // at least one 1
@@ -309,11 +301,6 @@ void nondInteraction(std::vector<Individual> &population, std::vector<double> &p
         phenotype[i] = additive[i] + epistasis[i] + noise;
     }
     std::cout<<"\n";
-    std::cout<<"phenotype of every individual is  =  \n";
-    for(int i = 0; i<phenotype.size();++i){
-        std::cout<<"individual  "<<i<<"  phenotype = "<<phenotype[i]<<std::endl;
-    }
-    
 }
 
 void direcInteraction(std::vector<Individual> &population,std::vector<double> &phenotype){
@@ -370,14 +357,9 @@ void direcInteraction(std::vector<Individual> &population,std::vector<double> &p
  
         phenotype[i] = addxepiVec[i]+ noise;
    }
-   std::cout<<"\n";
-   std::cout<<"phenotype of every individual is  =  \n";
-   for(int i = 0; i<phenotype.size();++i){
-        std::cout<<"individual  "<<i<<"  phenotype = "<<phenotype[i]<<std::endl;
-   }
 }
 
-void additivemodel(std::vector<Individual> &genome, std::vector<double> &phenotypeAdd){
+void additivemodel(std::vector<Individual> &population, std::vector<double> &phenotypeAdd){
     //obtain seed from system clock
     std::chrono::high_resolution_clock::time_point tp =
     std::chrono::high_resolution_clock::now();
@@ -388,9 +370,29 @@ void additivemodel(std::vector<Individual> &genome, std::vector<double> &phenoty
     // std::clog<<"random seed : "<<seed<<"\n";
     rng.seed(seed);
     
+    std::vector<double> additive(population.size(),0.0);
+    
+    //Calculate the additive part of phenotype the calculation
+    for(int i = 0; i<population.size();++i){
+        for(int j = 0; j<population[i].genome.size();++j){
+            additive[i] += population[i].genome[j];
+        }
+    }
+    
+    //Calculate the environmental noise and calculate the phenotype
+    std::normal_distribution<double> environment(0.0,1.0);
     
     
+    for(int i =0; i<phenotypeAdd.size();++i){
+        double noise = environment(rng);
+        
+        phenotypeAdd[i] = additive[i] + noise;
+    }
     
+    std::cout<<"Phenotypeaddition vec values are  "<<std::endl;
+    for(int i = 0; i<population.size();++i){
+        std::cout<<phenotypeAdd[i]<<std::endl;
+    }
 };
 
 
@@ -466,6 +468,7 @@ int main() {
         
         //nondInteraction(population, phenotype);
         direcInteraction(population, phenotype);
+        additivemodel(population, phenotypeAdd);
         
         
         // PRINT TO COMPUTER TO CHECK THE DATA **********************************************************
