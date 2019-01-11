@@ -316,6 +316,67 @@ void nondInteraction(std::vector<Individual> &population, std::vector<double> &p
     
 }
 
+void direcInteraction(std::vector<Individual> &population,std::vector<double> &phenotype){
+    //obtain seed from system clock
+    std::chrono::high_resolution_clock::time_point tp =
+    std::chrono::high_resolution_clock::now();
+    unsigned seed = static_cast<unsigned>(tp.time_since_epoch().count());
+    
+    // create and seed pseudo-random number generator
+    std::mt19937_64 rng;
+    // std::clog<<"random seed : "<<seed<<"\n";
+    rng.seed(seed);
+    
+    std::vector<double> addxepiVec(population.size(),0.0);
+   
+
+    
+    // Calculate the output after the additive epistasis interactions.
+    
+    for(int i = 0; i<population.size();++i){
+        // walk through the population and copy the genome of every individual. With the copy we are able to calc the output without changing the genome.
+        std::vector<double> outputepi(population[i].genome.size(),0.0);
+        for(int j = 0; j<population[i].genome.size();++j){
+            outputepi = population[i].genome;
+        }
+
+        for(int j = 0; j<genomelength;++j){
+            std::vector<double> inputID;
+            
+            //figure out by who gene j is connected and store them in a vector in order to do calculations...
+            for(int q = 0; q<population[i].interaction.size();++q){
+                if(population[i].interaction[q][1]== j){
+                    int inputIDval =population[i].interaction[q][0];
+                    inputID.push_back(population[i].genome[inputIDval]);
+                }
+            }
+            //calculate the output of every gene after epistasis for individiual i :
+            if(inputID.size()>0){
+            double tmpaverage = (std::accumulate(inputID.begin(), inputID.end(), 0.0))/(inputID.size());
+            //outputepi[j] = outputepi[j]*tmpaverage;                     //for recessive inhibitory epistasis
+            outputepi[j] = outputepi[j]*(1.0-tmpaverage);                 //for dominant inhibitory epistasis
+            }
+        }
+        
+        addxepiVec[i] = std::accumulate(outputepi.begin(), outputepi.end(), 0.0);
+    }
+
+    //Calculate the environmental noise and calculate the phenotype
+    std::normal_distribution<double> environment(0.0,1.0);
+    
+    
+   for(int i =0; i<phenotype.size();++i){
+        double noise = environment(rng);
+ 
+        phenotype[i] = addxepiVec[i]+ noise;
+   }
+   std::cout<<"\n";
+   std::cout<<"phenotype of every individual is  =  \n";
+   for(int i = 0; i<phenotype.size();++i){
+        std::cout<<"individual  "<<i<<"  phenotype = "<<phenotype[i]<<std::endl;
+   }
+}
+
 
 int main() {
     try{
@@ -376,7 +437,15 @@ int main() {
         }
         
         
-        // print lines for checking matrices and vectors individuals......
+        // CALCULATE THE FREQUENCIES OF EXPRESSION VALUES ***************************************************
+        
+        std::vector<double> phenotype(population.size(),0);
+      
+        //nondInteraction(population, phenotype);
+        direcInteraction(population, phenotype);
+        
+        
+        // PRINT TO COMPUTER TO CHECK THE DATA **********************************************************
         for(int i = 0; i<population.size();++i){
             std::cout<<"individual  =  "<<i<<std::endl;
             std::cout<<"genome = "<<std::endl;
@@ -394,15 +463,16 @@ int main() {
             std::cout<<"\n";
         }
         
+        std::cout<<"\n";
+        std::cout<<"phenotype of every individual is  =  \n";
+        for(int i = 0; i<phenotype.size();++i){
+            std::cout<<"individual  "<<i<<"  phenotype = "<<phenotype[i]<<std::endl;
+        }
         
         
-        // CALCULATE THE FREQUENCIES OF EXPRESSION VALUES ***************************************************
         
-        std::vector<double> phenotype(population.size(),0);
-      
-        nondInteraction(population, phenotype);
-    
-
+        
+        
         // OUTPUT TO FILE **********************************************************
         //open a output file.
         std::ofstream ofs;
