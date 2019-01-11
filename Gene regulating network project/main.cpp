@@ -377,6 +377,24 @@ void direcInteraction(std::vector<Individual> &population,std::vector<double> &p
    }
 }
 
+void additivemodel(std::vector<Individual> &genome, std::vector<double> &phenotypeAdd){
+    //obtain seed from system clock
+    std::chrono::high_resolution_clock::time_point tp =
+    std::chrono::high_resolution_clock::now();
+    unsigned seed = static_cast<unsigned>(tp.time_since_epoch().count());
+    
+    // create and seed pseudo-random number generator
+    std::mt19937_64 rng;
+    // std::clog<<"random seed : "<<seed<<"\n";
+    rng.seed(seed);
+    
+    
+    
+    
+};
+
+
+
 
 int main() {
     try{
@@ -439,8 +457,13 @@ int main() {
         
         // CALCULATE THE FREQUENCIES OF EXPRESSION VALUES ***************************************************
         
-        std::vector<double> phenotype(population.size(),0);
+        // create two vectors. One for calculating the phenotype with epistasis and one for calculating the phenotype without epistasis.
+        std::vector<double> phenotype(population.size(),0.0);
+        std::vector<double> phenotypeAdd(population.size(),0.0);
       
+        
+        
+        
         //nondInteraction(population, phenotype);
         direcInteraction(population, phenotype);
         
@@ -481,17 +504,11 @@ int main() {
             throw std::runtime_error("unable to open file output.csv \n");
         }
         
-        //calculate the frequency of every trait expression and store it in the output file
+        //put the phenotype values to excel in order to make
         for(int i = 0; i<genomelength;++i){
             ofs<<i+1<<", "<<std::count(phenotype.begin(),phenotype.end(),i+1)<<"\n";
         }
         
-        //for(int i = 0; i<interaction.size();++i){
-        //    for(int j = 0; j<2;++j){
-        //        std::cout<<interaction[i][j]<<", ";
-        //    }
-        //    std::cout<<"\n ";
-        //}
         
     }
     catch(std::exception &fatalException){
