@@ -12,12 +12,58 @@
 #include <random>
 #include <fstream>
 
-const int genomelength = 100;
-const int N = 100;
-const int Maxgeneration = 10;
+const int genomelength = 10;
+const int N = 10;
+const int Maxgeneration = 2;
 const double mutationrate = 0.1;
 const double meanoffspring = 2.5;
 const double k = 1.0;
+
+struct Individual {
+    std::vector<double> genome;
+    std::vector<std::vector<double> > interaction;
+};
+
+
+void reprotwo(std::vector<Individual> &population){
+    
+    //obtain seed from system clock
+    std::chrono::high_resolution_clock::time_point tp =
+    std::chrono::high_resolution_clock::now();
+    unsigned seed = static_cast<unsigned>(tp.time_since_epoch().count());
+    
+    // create and seed pseudo-random number generator
+    std::mt19937_64 rng;
+    // std::clog<<"random seed : "<<seed<<"\n";
+    rng.seed(seed);
+    
+    std::poisson_distribution<int> poisson(meanoffspring);
+    
+    std::vector<Individual> newpopulation;
+    
+    //check for every individual how many offspring they will produce.
+    for(int i = 0; i<population.size();++i){
+        
+        int event = poisson(rng);
+        
+        if(event>0){
+            Individual newindividual = {population[i].genome,population[i].interaction};
+            for(int j = 0; j<event;++j){
+                newpopulation.push_back(newindividual);
+            }
+        } else if (event < 0){
+            throw std::logic_error("value from poisson distribution is negative. \n");
+        }
+    }
+    //update population
+    population = newpopulation;
+}
+
+
+
+
+
+
 
 
 void reproduction(std::vector<std::vector<int> > &genome){
@@ -57,6 +103,44 @@ void reproduction(std::vector<std::vector<int> > &genome){
 }
 
 
+void mutatwo(std::vector<Individual> &population){
+    //obtain seed from system clock
+    std::chrono::high_resolution_clock::time_point tp =
+    std::chrono::high_resolution_clock::now();
+    unsigned seed = static_cast<unsigned>(tp.time_since_epoch().count());
+    
+    // create and seed pseudo-random number generator
+    std::mt19937_64 rng;
+    // std::clog<<"random seed : "<<seed<<"\n";
+    rng.seed(seed);
+    
+    // flip value if mutation happens.
+    for(int i = 0; i<population.size();++i){
+        for(int j = 0; j<genomelength; ++j){
+            std::bernoulli_distribution biasedCoinFlip(mutationrate);
+            
+            if(biasedCoinFlip(rng)){
+                if(population[i].genome[j]==1){
+                    population[i].genome[j] = 0;
+                } else if (population[i].genome[j]==0){
+                    population[i].genome[j] = 1;
+                } else{
+                    throw std::logic_error("state of gene is neither 0 or 1. \n");
+                }
+            }
+            
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
 void mutation(std::vector<std::vector<int> > &genome){
     
     
@@ -90,10 +174,10 @@ void mutation(std::vector<std::vector<int> > &genome){
     
 }
 
-void addinteraction(std::vector<std::vector<int> > &interaction){
+void addinteraction(std::vector<std::vector<double> > &interaction){
     
     // create variable to count number of genes.
-    int numbgenes = 1;
+    double numbgenes = 1.0;
     //create vector to store degree of nodes.
     std::vector<double> nodeDegree(1,0.0);
     // create vector to store the attachment probabilities.
@@ -138,11 +222,11 @@ void addinteraction(std::vector<std::vector<int> > &interaction){
             throw std::logic_error("number of connectios is negative \n");
         
         // ADD THE NEW INTERACTIONS TO THE MODEL ************************************
-        std::vector<int> tmpinteract(4,-1);
+        std::vector<double> tmpinteract(4,-1);
         
         for(int i = 0; i<numb_of_connections; ++i){
             
-            int attachnode;
+            double attachnode;
             
             //determine the node with who the new node will connect. Only if it hasn't connect with this node before.
             for(;;){
@@ -154,7 +238,7 @@ void addinteraction(std::vector<std::vector<int> > &interaction){
                 throw std::logic_error("id-value of connection node is invalid \n");
             
             // add interaction to the matrix
-            std::vector<int> newinteraction = {numbgenes,attachnode};
+            std::vector<double> newinteraction = {numbgenes,attachnode};
             interaction.push_back(newinteraction);
             
             //update degree vec.
@@ -169,10 +253,147 @@ void addinteraction(std::vector<std::vector<int> > &interaction){
         
         ++numbgenes;
     }
+}
+
+void nondInteraction(std::vector<Individual> &population, std::vector<double> &phenotype){
+    //obtain seed from system clock
+    std::chrono::high_resolution_clock::time_point tp =
+    std::chrono::high_resolution_clock::now();
+    unsigned seed = static_cast<unsigned>(tp.time_since_epoch().count());
+    
+    // create and seed pseudo-random number generator
+    std::mt19937_64 rng;
+    // std::clog<<"random seed : "<<seed<<"\n";
+    rng.seed(seed);
+    
+    std::vector<double> additive(population.size(),0);
+    std::vector<double> epistasis(population.size(),0);
     
     
+    //Calculate the additive part of phenotype the calculation
+    for(int i = 0; i<population.size();++i){
+        for(int j = 0; j<genomelength;++j){
+            additive[i] += population[i].genome[j];
+        }
+    }
+    std::cout<<"additive value for every individual is  =  \n";
+    for(int i = 0; i<epistasis.size();++i){
+        std::cout<<"individual  "<<i<<"  additive value = "<<additive[i]<<std::endl;
+    }
+    std::cout<<"\n";
+    
+    //Calculate the epistasis part of the phenotype calculation
+    for(int i = 0; i<population.size();++i){
+        for(int j = 0; j<population[i].interaction.size();++j){
+            int geneOne = population[i].interaction[j][0];
+            int geneTwo = population[i].interaction[j][1];
+            //In this function you apply the epistasis rule to the model.
+            epistasis[i] += (population[i].genome[geneOne]*population[i].genome[geneTwo]);              //multiplication
+            //epistasis[i] += ((population[i].genome[geneOne]+population[i].genome[geneTwo])/2);          // average
+            //if(population[i].genome[geneOne] == 1 || population[i].genome[geneTwo] == 1) epistasis[i]+=1.0;                                                             // at least one 1
+        }
+    }
+    std::cout<<"epistasis value for every individual is  =  \n";
+    for(int i = 0; i<epistasis.size();++i){
+        std::cout<<"individual  "<<i<<"  epistasis = "<<epistasis[i]<<std::endl;
+    }
+    std::cout<<"\n";
+    
+    //Calculate the environmental noise and calculate the phenotype
+    std::normal_distribution<double> environment(0.0,1.0);
+    
+    
+    for(int i =0; i<phenotype.size();++i){
+        double noise = environment(rng);
+        std::cout<<"individual "<<i<<"  noise = "<<noise<<std::endl;
+        phenotype[i] = additive[i] + epistasis[i] + noise;
+    }
+    std::cout<<"\n";
+    std::cout<<"phenotype of every individual is  =  \n";
+    for(int i = 0; i<phenotype.size();++i){
+        std::cout<<"individual  "<<i<<"  phenotype = "<<phenotype[i]<<std::endl;
+    }
     
 }
+
+void direcInteraction(std::vector<Individual> &population,std::vector<double> &phenotype){
+    //obtain seed from system clock
+    std::chrono::high_resolution_clock::time_point tp =
+    std::chrono::high_resolution_clock::now();
+    unsigned seed = static_cast<unsigned>(tp.time_since_epoch().count());
+    
+    // create and seed pseudo-random number generator
+    std::mt19937_64 rng;
+    // std::clog<<"random seed : "<<seed<<"\n";
+    rng.seed(seed);
+    
+    std::vector<double> addxepiVec(population.size(),0.0);
+   
+
+    
+    // Calculate the output after the additive epistasis interactions.
+    
+    for(int i = 0; i<population.size();++i){
+        // walk through the population and copy the genome of every individual. With the copy we are able to calc the output without changing the genome.
+        std::vector<double> outputepi(population[i].genome.size(),0.0);
+        for(int j = 0; j<population[i].genome.size();++j){
+            outputepi = population[i].genome;
+        }
+
+        for(int j = 0; j<genomelength;++j){
+            std::vector<double> inputID;
+            
+            //figure out by who gene j is connected and store them in a vector in order to do calculations...
+            for(int q = 0; q<population[i].interaction.size();++q){
+                if(population[i].interaction[q][1]== j){
+                    int inputIDval =population[i].interaction[q][0];
+                    inputID.push_back(population[i].genome[inputIDval]);
+                }
+            }
+            //calculate the output of every gene after epistasis for individiual i :
+            if(inputID.size()>0){
+            double tmpaverage = (std::accumulate(inputID.begin(), inputID.end(), 0.0))/(inputID.size());
+            //outputepi[j] = outputepi[j]*tmpaverage;                     //for recessive inhibitory epistasis
+            outputepi[j] = outputepi[j]*(1.0-tmpaverage);                 //for dominant inhibitory epistasis
+            }
+        }
+        
+        addxepiVec[i] = std::accumulate(outputepi.begin(), outputepi.end(), 0.0);
+    }
+
+    //Calculate the environmental noise and calculate the phenotype
+    std::normal_distribution<double> environment(0.0,1.0);
+    
+    
+   for(int i =0; i<phenotype.size();++i){
+        double noise = environment(rng);
+ 
+        phenotype[i] = addxepiVec[i]+ noise;
+   }
+   std::cout<<"\n";
+   std::cout<<"phenotype of every individual is  =  \n";
+   for(int i = 0; i<phenotype.size();++i){
+        std::cout<<"individual  "<<i<<"  phenotype = "<<phenotype[i]<<std::endl;
+   }
+}
+
+void additivemodel(std::vector<Individual> &genome, std::vector<double> &phenotypeAdd){
+    //obtain seed from system clock
+    std::chrono::high_resolution_clock::time_point tp =
+    std::chrono::high_resolution_clock::now();
+    unsigned seed = static_cast<unsigned>(tp.time_since_epoch().count());
+    
+    // create and seed pseudo-random number generator
+    std::mt19937_64 rng;
+    // std::clog<<"random seed : "<<seed<<"\n";
+    rng.seed(seed);
+    
+    
+    
+    
+};
+
+
 
 
 int main() {
@@ -187,14 +408,11 @@ int main() {
         std::clog<<"random seed : "<<seed<<"\n";
         rng.seed(seed);
         
+        std::vector<Individual> population;
+        
         // create matrix to store the genomes. Every row is the genome of a individual.
-        std::vector<std::vector<int> > genome(N,std::vector<int>(genomelength,0));
+        std::vector<std::vector<double> > genome(N,std::vector<double>(genomelength,0));
         
-        //DETERMINE EDGE ARCHITECTURE *********************************************************************
-        // create matrix to store the interactions in
-        std::vector<std::vector<int> > interaction;
-        
-        addinteraction(interaction);
         
         // RANDOMLY ASSIGN THE VALUE (O OR 1) TO THE GENES. ***********************************************
         for(int i = 0; i<genome.size();++i){
@@ -209,38 +427,73 @@ int main() {
             }
         }
         
+        //DETERMINE EDGE ARCHITECTURE *********************************************************************
+        // create matrix to store the interactions in
+        std::vector<std::vector<double> > interaction;
+        
+        addinteraction(interaction);
+        
+        // PUT THE GENOME VECTORS AND INTERACTIONS TO POPULATION STRUCT ************************************
+        for(int i = 0; i<genome.size();++i){
+            Individual dataindividual = {genome[i],interaction};
+            population.push_back(dataindividual);
+        }
+        
+        
         // LET TE POPULATION EVOLVE BY CREATING NEW GENERATIONS ********************************************
         //To get to a gaussian distribution, we need to let the population evolve...
         
         for(int genCount = 0; genCount<Maxgeneration; ++genCount){
             
             //create new offspring
-            reproduction(genome);
+            //reproduction(genome);
+            reprotwo(population);
             
             //look for mutations.
-            mutation(genome);
+            //mutation(genome);
+            mutatwo(population);
         }
         
         
         // CALCULATE THE FREQUENCIES OF EXPRESSION VALUES ***************************************************
         
-        std::vector<double> sumgenome(genome.size(),0);
+        // create two vectors. One for calculating the phenotype with epistasis and one for calculating the phenotype without epistasis.
+        std::vector<double> phenotype(population.size(),0.0);
+        std::vector<double> phenotypeAdd(population.size(),0.0);
+      
         
-        //count the total value of the genome of every individual and store in the sumgenome vector.
-        for(int i = 0; i<genome.size();++i){
-            for(int j = 0; j<genomelength;++j){
-                sumgenome[i] += genome[i][j];
+        
+        
+        //nondInteraction(population, phenotype);
+        direcInteraction(population, phenotype);
+        
+        
+        // PRINT TO COMPUTER TO CHECK THE DATA **********************************************************
+        for(int i = 0; i<population.size();++i){
+            std::cout<<"individual  =  "<<i<<std::endl;
+            std::cout<<"genome = "<<std::endl;
+            for(int j = 0;j<genomelength;++j){
+                std::cout<<population[i].genome[j]<<", ";
             }
+            std::cout<<"\n";
+            std::cout<<"\n";
+        }
+        std::cout<<"the interaction matrix is ="<<std::endl;;
+        for(int i = 0; i<population[0].interaction.size();++i){
+            for(int j = 0; j<2;++j){
+                std::cout<<population[0].interaction[i][j]<<"   ";
+            }
+            std::cout<<"\n";
         }
         
-        //calculate the noise from the environment
-        std::normal_distribution<double> environment(0.0,1.0);
+        std::cout<<"\n";
+        std::cout<<"phenotype of every individual is  =  \n";
+        for(int i = 0; i<phenotype.size();++i){
+            std::cout<<"individual  "<<i<<"  phenotype = "<<phenotype[i]<<std::endl;
+        }
         
-       for(int i =0; i<sumgenome.size();++i){
-           double noise = environment(rng);
-           sumgenome[i] = sumgenome[i] + noise;
-       }
-    
+        
+        
         
         
         // OUTPUT TO FILE **********************************************************
@@ -251,17 +504,11 @@ int main() {
             throw std::runtime_error("unable to open file output.csv \n");
         }
         
-        //calculate the frequency of every trait expression and store it in the output file
+        //put the phenotype values to excel in order to make
         for(int i = 0; i<genomelength;++i){
-            ofs<<i+1<<", "<<std::count(sumgenome.begin(),sumgenome.end(),i+1)<<"\n";
+            ofs<<i+1<<", "<<std::count(phenotype.begin(),phenotype.end(),i+1)<<"\n";
         }
         
-        //for(int i = 0; i<interaction.size();++i){
-        //    for(int j = 0; j<2;++j){
-        //        std::cout<<interaction[i][j]<<", ";
-        //    }
-        //    std::cout<<"\n ";
-        //}
         
     }
     catch(std::exception &fatalException){
