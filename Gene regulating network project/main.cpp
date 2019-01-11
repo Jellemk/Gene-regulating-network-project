@@ -12,9 +12,9 @@
 #include <random>
 #include <fstream>
 
-const int genomelength = 10;
-const int N = 10;
-const int Maxgeneration = 2;
+const int genomelength = 100;
+const int N = 100;
+const int Maxgeneration = 10;
 const double mutationrate = 0.1;
 const double meanoffspring = 2.5;
 const double k = 1.0;
@@ -44,7 +44,11 @@ void reprotwo(std::vector<Individual> &population){
     //check for every individual how many offspring they will produce.
     for(int i = 0; i<population.size();++i){
         
-        int event = poisson(rng);
+        int event;
+        for(;;){
+            event = poisson(rng);
+            if(event<4)break;
+        }
         
         if(event>0){
             Individual newindividual = {population[i].genome,population[i].interaction};
@@ -454,9 +458,11 @@ int main() {
             //look for mutations.
             //mutation(genome);
             mutatwo(population);
+            
+            std::cout<<genCount<<" is done "<<std::endl;
         }
-        
-        
+        std::cout<<"generation calc is done"<<std::endl;
+        std::cout<<"population size = "<<population.size()<<std::endl;
         // CALCULATE THE FREQUENCIES OF EXPRESSION VALUES ***************************************************
         
         // create two vectors. One for calculating the phenotype with epistasis and one for calculating the phenotype without epistasis.
@@ -508,8 +514,8 @@ int main() {
         }
         
         //put the phenotype values to excel in order to make
-        for(int i = 0; i<genomelength;++i){
-            ofs<<i+1<<", "<<std::count(phenotype.begin(),phenotype.end(),i+1)<<"\n";
+        for(int i = 0; i<population.size();++i){
+            ofs<<i+1<<","<<phenotypeAdd[i]<<","<<phenotype[i]<<"\n";
         }
         
         
