@@ -13,11 +13,19 @@
 #include <fstream>
 
 const int genomelength = 100;
-const int N = 100;
-const int Maxgeneration = 10;
+const int N = 1000;
+const int Maxgeneration = 20;
 const double mutationrate = 0.1;
 const double meanoffspring = 2.5;
-const double k = 1.0;
+const double k =  2.0;
+const int direction = 1;
+//1 - non-directional
+//2 - directional
+const int typeInteraction = 1;
+//1 - Recessive Epistasis                   1 - recessive inhibitory epistasis (directional)
+//2 - Dominant Epistasis                    2 - Dominant inhibitory epistasis
+//3 - Duplicate Recessive Epistasis
+
 
 struct Individual {
     std::vector<double> genome;
@@ -47,7 +55,7 @@ void reprotwo(std::vector<Individual> &population){
         int event;
         for(;;){
             event = poisson(rng);
-            if(event<4)break;
+            if(event<3)break;
         }
         
         if(event>0){
@@ -62,11 +70,6 @@ void reprotwo(std::vector<Individual> &population){
     //update population
     population = newpopulation;
 }
-
-
-
-
-
 
 
 
@@ -272,39 +275,49 @@ void nondInteraction(std::vector<Individual> &population, std::vector<double> &p
             additive[i] += population[i].genome[j];
         }
     }
-    std::cout<<"additive value for every individual is  =  \n";
-    for(int i = 0; i<epistasis.size();++i){
-        std::cout<<"individual  "<<i<<"  additive value = "<<additive[i]<<std::endl;
-    }
-    std::cout<<"\n";
+   // std::cout<<"additive value for every individual is  =  \n";
+   // for(int i = 0; i<epistasis.size();++i){
+   //     std::cout<<"individual  "<<i<<"  additive value = "<<additive[i]<<std::endl;
+   // }
+   // std::cout<<"\n";
     
     //Calculate the epistasis part of the phenotype calculation
     for(int i = 0; i<population.size();++i){
         for(int j = 0; j<population[i].interaction.size();++j){
             int geneOne = population[i].interaction[j][0];
             int geneTwo = population[i].interaction[j][1];
-            //BELOW IS OPTION TO CHOOSE WHICH RULE YOU WANT TO APPLY. !!!!!!!!!!!!!!!!!!! ONLY SELECT ONE.
-            epistasis[i] += (population[i].genome[geneOne]*population[i].genome[geneTwo]);              //multiplication
-            //epistasis[i] += ((population[i].genome[geneOne]+population[i].genome[geneTwo])/2);          // average
-            //if(population[i].genome[geneOne] == 1 || population[i].genome[geneTwo] == 1) epistasis[i]+=1.0;                                                             // at least one 1
+            switch (typeInteraction) {
+                case 1:
+                    epistasis[i] += ((population[i].genome[geneOne]+population[i].genome[geneTwo])/2);
+                    break;
+                case 2:
+                    if(population[i].genome[geneOne] == 1 || population[i].genome[geneTwo] == 1) epistasis[i]+=1.0;
+                    break;
+                case 3:
+                    epistasis[i] += (population[i].genome[geneOne]*population[i].genome[geneTwo]);
+                    break;
+                default:
+                    throw std::logic_error("integer for type of interaction is incorrect \n");
+                    break;
+            }
         }
     }
-    std::cout<<"epistasis value for every individual is  =  \n";
-    for(int i = 0; i<epistasis.size();++i){
-        std::cout<<"individual  "<<i<<"  epistasis = "<<epistasis[i]<<std::endl;
-    }
-    std::cout<<"\n";
+   // std::cout<<"epistasis value for every individual is  =  \n";
+   // for(int i = 0; i<epistasis.size();++i){
+   //     std::cout<<"individual  "<<i<<"  epistasis = "<<epistasis[i]<<std::endl;
+   // }
+   // std::cout<<"\n";
     
     //Calculate the environmental noise and calculate the phenotype
     std::normal_distribution<double> environment(0.0,1.0);
     
     
-    for(int i =0; i<phenotype.size();++i){
+   for(int i =0; i<phenotype.size();++i){
         double noise = environment(rng);
-        std::cout<<"individual "<<i<<"  noise = "<<noise<<std::endl;
+        //std::cout<<"individual "<<i<<"  noise = "<<noise<<std::endl;
         phenotype[i] = additive[i] + epistasis[i] + noise;
     }
-    std::cout<<"\n";
+    //std::cout<<"\n";
 }
 
 void direcInteraction(std::vector<Individual> &population,std::vector<double> &phenotype){
@@ -344,8 +357,17 @@ void direcInteraction(std::vector<Individual> &population,std::vector<double> &p
             //calculate the output of every gene after epistasis for individiual i :
             if(inputID.size()>0){
             double tmpaverage = (std::accumulate(inputID.begin(), inputID.end(), 0.0))/(inputID.size());
-            //outputepi[j] = outputepi[j]*tmpaverage;                     //for recessive inhibitory epistasis
-            outputepi[j] = outputepi[j]*(1.0-tmpaverage);                 //for dominant inhibitory epistasis
+                switch (typeInteraction) {
+                    case 1:
+                        outputepi[j] = outputepi[j]*tmpaverage;
+                        break;
+                    case 2:
+                        outputepi[j] = outputepi[j]*(1.0-tmpaverage);
+                        break;
+                    default:
+                        throw std::logic_error("integer for type of interaction is incorrect \n");
+                        break;
+                }
             }
         }
         
@@ -393,10 +415,10 @@ void additivemodel(std::vector<Individual> &population, std::vector<double> &phe
         phenotypeAdd[i] = additive[i] + noise;
     }
     
-    std::cout<<"Phenotypeaddition vec values are  "<<std::endl;
-    for(int i = 0; i<population.size();++i){
-        std::cout<<phenotypeAdd[i]<<std::endl;
-    }
+   // std::cout<<"Phenotypeaddition vec values are  "<<std::endl;
+   // for(int i = 0; i<population.size();++i){
+  //      std::cout<<phenotypeAdd[i]<<std::endl;
+  //  }
 };
 
 
@@ -448,6 +470,7 @@ int main() {
         
         // LET TE POPULATION EVOLVE BY CREATING NEW GENERATIONS ********************************************
         //To get to a gaussian distribution, we need to let the population evolve...
+
         
         for(int genCount = 0; genCount<Maxgeneration; ++genCount){
             
@@ -459,53 +482,35 @@ int main() {
             //mutation(genome);
             mutatwo(population);
             
+            
             std::cout<<genCount<<" is done "<<std::endl;
         }
         std::cout<<"generation calc is done"<<std::endl;
         std::cout<<"population size = "<<population.size()<<std::endl;
-        // CALCULATE THE FREQUENCIES OF EXPRESSION VALUES ***************************************************
         
+        
+        
+        
+        // CALCULATE THE FREQUENCIES OF EXPRESSION VALUES ***************************************************
         // create two vectors. One for calculating the phenotype with epistasis and one for calculating the phenotype without epistasis.
         std::vector<double> phenotype(population.size(),0.0);
         std::vector<double> phenotypeAdd(population.size(),0.0);
-      
         
+        switch (direction) {
+            case 1:
+                nondInteraction(population, phenotype);
+                break;
+            case 2:
+                direcInteraction(population, phenotype);
+                break;
+            default:
+                throw std::logic_error("integer for type of direction is incorrect \n");
+                break;
+        }
         
-        
-        //nondInteraction(population, phenotype);
-        direcInteraction(population, phenotype);
         additivemodel(population, phenotypeAdd);
         
-        
-        // PRINT TO COMPUTER TO CHECK THE DATA **********************************************************
-        for(int i = 0; i<population.size();++i){
-            std::cout<<"individual  =  "<<i<<std::endl;
-            std::cout<<"genome = "<<std::endl;
-            for(int j = 0;j<genomelength;++j){
-                std::cout<<population[i].genome[j]<<", ";
-            }
-            std::cout<<"\n";
-            std::cout<<"\n";
-        }
-        std::cout<<"the interaction matrix is ="<<std::endl;;
-        for(int i = 0; i<population[0].interaction.size();++i){
-            for(int j = 0; j<2;++j){
-                std::cout<<population[0].interaction[i][j]<<"   ";
-            }
-            std::cout<<"\n";
-        }
-        
-        std::cout<<"\n";
-        std::cout<<"phenotype of every individual is  =  \n";
-        for(int i = 0; i<phenotype.size();++i){
-            std::cout<<"individual  "<<i<<"  phenotype = "<<phenotype[i]<<std::endl;
-        }
-        
-        
-        
-        
-        
-        // OUTPUT TO FILE **********************************************************
+        // OUTPUT TO FILE OPEN**********************************************************
         //open a output file.
         std::ofstream ofs;
         ofs.open("output.csv");
@@ -518,6 +523,30 @@ int main() {
             ofs<<i+1<<","<<phenotypeAdd[i]<<","<<phenotype[i]<<"\n";
         }
         
+        
+        // PRINT TO COMPUTER TO CHECK THE DATA **********************************************************
+       // for(int i = 0; i<population.size();++i){
+       //     std::cout<<"individual  =  "<<i<<std::endl;
+       //     std::cout<<"genome = "<<std::endl;
+       //     for(int j = 0;j<genomelength;++j){
+       //         std::cout<<population[i].genome[j]<<", ";
+       //     }
+       //     std::cout<<"\n";
+       //     std::cout<<"\n";
+       // }
+       // std::cout<<"the interaction matrix is ="<<std::endl;;
+       // for(int i = 0; i<population[0].interaction.size();++i){
+       //     for(int j = 0; j<2;++j){
+       //         std::cout<<population[0].interaction[i][j]<<"   ";
+       //     }
+       //     std::cout<<"\n";
+        //}
+        
+       // std::cout<<"\n";
+       // std::cout<<"phenotype of every individual is  =  \n";
+       // for(int i = 0; i<phenotype.size();++i){
+       //     std::cout<<"individual  "<<i<<"  phenotype = "<<phenotype[i]<<std::endl;
+       // }
         
     }
     catch(std::exception &fatalException){
