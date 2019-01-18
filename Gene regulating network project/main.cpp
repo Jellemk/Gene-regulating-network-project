@@ -14,15 +14,17 @@
 
 const int genomelength = 100;
 const int N = 1000;
-const int Maxgeneration = 20;
+const int Maxgeneration = 25;
 const double mutationrate = 0.1;
 const double meanoffspring = 2.5;
-const double k =  2.0;
+const double k =    0.0;
+const int maxphenotype = 200;
 const int direction = 1;
 //1 - non-directional
 //2 - directional
-const int typeInteraction = 1;
-//1 - Recessive Epistasis                   1 - recessive inhibitory epistasis (directional)
+const int typeInteraction = 2;
+//NON-DIRECTIONAL                           DIRECTIONAL
+//1 - Recessive Epistasis                   1 - recessive inhibitory epistasis
 //2 - Dominant Epistasis                    2 - Dominant inhibitory epistasis
 //3 - Duplicate Recessive Epistasis
 
@@ -254,7 +256,7 @@ void addinteraction(std::vector<std::vector<double> > &interaction){
     }
 }
 
-void nondInteraction(std::vector<Individual> &population, std::vector<double> &phenotype){
+void nondInteraction(std::vector<Individual> &population, std::vector<double> &phenotype,std::vector<int> &frequency){
     //obtain seed from system clock
     std::chrono::high_resolution_clock::time_point tp =
     std::chrono::high_resolution_clock::now();
@@ -318,9 +320,18 @@ void nondInteraction(std::vector<Individual> &population, std::vector<double> &p
         phenotype[i] = additive[i] + epistasis[i] + noise;
     }
     //std::cout<<"\n";
+    
+    for(int i = 0;i<maxphenotype;++i){
+        for(int j = 0; j<phenotype.size();++j){
+            if(phenotype[j]>=i && phenotype[j]<i+1){
+                frequency[i] += 1;
+            }
+        }
+    }
+    
 }
 
-void direcInteraction(std::vector<Individual> &population,std::vector<double> &phenotype){
+void direcInteraction(std::vector<Individual> &population,std::vector<double> &phenotype,std::vector<int> &frequency){
     //obtain seed from system clock
     std::chrono::high_resolution_clock::time_point tp =
     std::chrono::high_resolution_clock::now();
@@ -383,9 +394,18 @@ void direcInteraction(std::vector<Individual> &population,std::vector<double> &p
  
         phenotype[i] = addxepiVec[i]+ noise;
    }
+    
+    for(int i = 0;i<maxphenotype;++i){
+        for(int j = 0; j<phenotype.size();++j){
+            if(phenotype[j]>=i && phenotype[j]<i+1){
+                frequency[i] += 1;
+            }
+        }
+    }
+    
 }
 
-void additivemodel(std::vector<Individual> &population, std::vector<double> &phenotypeAdd){
+void additivemodel(std::vector<Individual> &population, std::vector<double> &phenotypeAdd,std::vector<int> &frequencyAdd){
     //obtain seed from system clock
     std::chrono::high_resolution_clock::time_point tp =
     std::chrono::high_resolution_clock::now();
@@ -413,6 +433,14 @@ void additivemodel(std::vector<Individual> &population, std::vector<double> &phe
         double noise = environment(rng);
         
         phenotypeAdd[i] = additive[i] + noise;
+    }
+    
+    for(int i = 0;i<maxphenotype;++i){
+        for(int j = 0; j<phenotypeAdd.size();++j){
+            if(phenotypeAdd[j]>=i && phenotypeAdd[j]<i+1){
+                frequencyAdd[i] += 1;
+            }
+        }
     }
     
    // std::cout<<"Phenotypeaddition vec values are  "<<std::endl;
@@ -495,20 +523,22 @@ int main() {
         // create two vectors. One for calculating the phenotype with epistasis and one for calculating the phenotype without epistasis.
         std::vector<double> phenotype(population.size(),0.0);
         std::vector<double> phenotypeAdd(population.size(),0.0);
+        std::vector<int>    frequency(maxphenotype,0);
+        std::vector<int>    frequencyAdd(maxphenotype,0);
         
         switch (direction) {
             case 1:
-                nondInteraction(population, phenotype);
+                nondInteraction(population, phenotype,frequency);
                 break;
             case 2:
-                direcInteraction(population, phenotype);
+                direcInteraction(population, phenotype,frequency);
                 break;
             default:
                 throw std::logic_error("integer for type of direction is incorrect \n");
                 break;
         }
         
-        additivemodel(population, phenotypeAdd);
+        additivemodel(population, phenotypeAdd,frequencyAdd);
         
         // OUTPUT TO FILE OPEN**********************************************************
         //open a output file.
@@ -519,10 +549,12 @@ int main() {
         }
         
         //put the phenotype values to excel in order to make
-        for(int i = 0; i<population.size();++i){
-            ofs<<i+1<<","<<phenotypeAdd[i]<<","<<phenotype[i]<<"\n";
+        //for(int i = 0; i<population.size();++i){
+        //    ofs<<i+1<<","<<phenotypeAdd[i]<<","<<phenotype[i]<<"\n";
+        //}
+        for(int i = 0; i<frequency.size();++i){
+            ofs<<i+1<<",,"<<frequencyAdd[i]<<",,"<<frequency[i]<<"\n";
         }
-        
         
         // PRINT TO COMPUTER TO CHECK THE DATA **********************************************************
        // for(int i = 0; i<population.size();++i){
