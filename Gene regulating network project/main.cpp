@@ -17,7 +17,7 @@ const int genomelength = 10;
 const int N = 20;
 const int Maxgeneration = 20;
 const double meanoffspring = 2.5;
-const double k =    4.0;
+const double k =    1.0;
 
 // CALC FITNESS PARAMETERS
 const double Popt = 5.0;
@@ -41,10 +41,10 @@ const int typeInteraction = 2;
 //RATES MUTATIONS
 const double mutationrate = 0.01;
 const double rpoint = 0.1;
-const double rdelete = 0.1;
+const double rdelete = 0.2;
 const double rrecruit = 0.1;
 const double rdupli = 0.1;
-const double rrecruitepi = 0.1;
+const double rrecruitepi = 0.2;
 const double rdeleteepi = 0.1;
 
 
@@ -589,9 +589,9 @@ int main() {
             
             // create four vectors. two for calculating the phenotype with epistasis and two for calculating the phenotype without epistasis.
             std::vector<double> phenotype(population.size(),0.0);
-            std::vector<double> phenotypeAdd(population.size(),0.0);
+            //std::vector<double> phenotypeAdd(population.size(),0.0);
             std::vector<int>    frequency(maxphenotype,0);
-            std::vector<int>    frequencyAdd(maxphenotype,0);
+            //std::vector<int>    frequencyAdd(maxphenotype,0);
             
             switch (direction) {
                 case 1:
@@ -605,7 +605,7 @@ int main() {
                     break;
             }
             
-            additivemodel(population, phenotypeAdd,frequencyAdd);
+            //additivemodel(population, phenotypeAdd,frequencyAdd);
             
             
             calcfitness(population, phenotype);
@@ -614,7 +614,7 @@ int main() {
             ofs<<"generation  = ,"<<genCount<<"\n";
             ofs<<"Phenotype,,Additive model,,Epistasis model \n";
             for(int i = 0; i<frequency.size();++i){
-                ofs<<i+1<<",,"<<frequencyAdd[i]<<",,"<<frequency[i]<<"\n";
+                ofs<<i+1<<",,"<<frequency[i]<<"\n";
             }
             ofs<<"\n";
             ofs<<"\n";
