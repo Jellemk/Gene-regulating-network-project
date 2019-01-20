@@ -12,12 +12,22 @@
 #include <random>
 #include <fstream>
 
+// GENERAL PARAMETERS
 const int genomelength = 10;
-const int N = 5;
-const int Maxgeneration = 2;
+const int N = 20;
+const int Maxgeneration = 20;
 const double meanoffspring = 2.5;
 const double k =    4.0;
-const int maxphenotype = 200;
+
+// CALC FITNESS PARAMETERS
+const double Popt = 5.0;
+const double omega = 5.0;
+const double metacosts = 0.002;
+
+// PHENOTYPE CALC PARAMETER
+const int maxphenotype = 20;
+
+//TYPES OF EPISTASIS
 const int direction = 1;
 //1 - non-directional
 //2 - directional
@@ -27,19 +37,22 @@ const int typeInteraction = 2;
 //2 - Dominant Epistasis                    2 - Dominant inhibitory epistasis
 //3 - Duplicate Recessive Epistasis
 
+
 //RATES MUTATIONS
-const double rpoint = 0.0;
-const double rdelete = 0.0;
-const double rrecruit = 0.0;
-const double rdupli = 0.0;
-const double rrecruitepi = 0.5;
-const double rdeleteepi = 0.5;
-const double rnothing = 0.5;
+const double mutationrate = 0.01;
+const double rpoint = 0.1;
+const double rdelete = 0.1;
+const double rrecruit = 0.1;
+const double rdupli = 0.1;
+const double rrecruitepi = 0.1;
+const double rdeleteepi = 0.1;
+
 
 struct Individual {
     std::vector<double> genome;
     std::vector<std::vector<double> > interaction;
     std::vector<double> nodedegree;
+    double fitness;
 };
 
 
@@ -55,13 +68,13 @@ void reprotwo(std::vector<Individual> &population){
     // std::clog<<"random seed : "<<seed<<"\n";
     rng.seed(seed);
     
-    std::poisson_distribution<int> poisson(meanoffspring);
     
     std::vector<Individual> newpopulation;
     
     //check for every individual how many offspring they will produce.
     for(int i = 0; i<population.size();++i){
         
+        std::poisson_distribution<int> poisson(meanoffspring*population[i].fitness);
         int event;
         for(;;){
             event = poisson(rng);
@@ -69,7 +82,7 @@ void reprotwo(std::vector<Individual> &population){
         }
         
         if(event>0){
-            Individual newindividual = {population[i].genome,population[i].interaction,population[i].nodedegree};
+            Individual newindividual = {population[i].genome,population[i].interaction,population[i].nodedegree,population[i].fitness};
             for(int j = 0; j<event;++j){
                 newpopulation.push_back(newindividual);
             }
@@ -443,38 +456,38 @@ void mutation(std::vector<Individual> &population){
     // std::clog<<"random seed : "<<seed<<"\n";
     rng.seed(seed);
     
-    std::vector<double> vecRates = {rpoint,rdelete,rrecruit,rdupli,rrecruitepi,rdeleteepi,rnothing};
+    std::vector<double> vecRates = {rpoint,rdelete,rrecruit,rdupli,rrecruitepi,rdeleteepi};
     std::discrete_distribution<int> determinemutation(vecRates.begin(),vecRates.end());
+    std::bernoulli_distribution mutationprob(mutationrate);
     
     for(int i = 0; i<population.size();++i){
         for(int j =0; j<population[i].genome.size();++j){
-           
-            int mutationtype = determinemutation(rng);
-            
-            switch (mutationtype) {
-                case 0: //point mutation
-                    mutapoint(population,i,j);
-                    break;
-                case 1: //gene deletion
-                    mutadelete(population,i,j);
-                    break;
-                case 2: // gene recruitment
-                    mutarecruit(population, i);
-                    break;
-                case 3: // gene duplication
-                    mutadupli(population, i, j);
-                    break;
-                case 4: // interaction recruitment
-                    mutarecruitepi(population, i, j);
-                    break;
-                case 5: // interaction deletion
-                    mutadeleteepi(population, i, j);
-                    break;
-                case 6:
-                    break;
-                default:
-                    throw std::logic_error("mutation type unknown.  \n");
-                    break;
+            if(mutationprob(rng)){
+                int mutationtype = determinemutation(rng);
+                
+                switch (mutationtype) {
+                    case 0: //point mutation
+                        mutapoint(population,i,j);
+                        break;
+                    case 1: //gene deletion
+                        mutadelete(population,i,j);
+                        break;
+                    case 2: // gene recruitment
+                        mutarecruit(population, i);
+                        break;
+                    case 3: // gene duplication
+                        mutadupli(population, i, j);
+                        break;
+                    case 4: // interaction recruitment
+                        mutarecruitepi(population, i, j);
+                        break;
+                    case 5: // interaction deletion
+                        mutadeleteepi(population, i, j);
+                        break;
+                    default:
+                        throw std::logic_error("mutation type unknown.  \n");
+                        break;
+                }
             }
             
         }
@@ -482,6 +495,13 @@ void mutation(std::vector<Individual> &population){
 
 }
 
+
+inline void calcfitness(std::vector<Individual> &population, const std::vector<double> &phenotype){
+    for(int i = 0; i<population.size();++i){
+        double L = std::count(population[i].genome.begin(), population[i].genome.end(), 0.0);
+        population[i].fitness = exp(-(pow((phenotype[i]-Popt), 2.0)/(2*pow(omega, 2.0)))) - L*metacosts;
+    }
+}
 
 
 
@@ -529,75 +549,17 @@ int main() {
         std::vector<std::vector<double> > interaction(0);
         std::cout<<"interaction size = "<<interaction.size()<<std::endl;
         std::vector<double> nodedegree(genomelength,0.0);
+        double W = 1.0;
+        
         
         
         // PUT THE GENOME VECTORS AND INTERACTIONS TO POPULATION STRUCT ************************************
         for(int i = 0; i<genome.size();++i){
-            Individual dataindividual = {genome[i],interaction,nodedegree};
+            Individual dataindividual = {genome[i],interaction,nodedegree,W};
             population.push_back(dataindividual);
         }
         
         
-        // LET TE POPULATION EVOLVE BY CREATING NEW GENERATIONS ********************************************
-        //To get to a gaussian distribution, we need to let the population evolve...
-
-        
-        for(int genCount = 0; genCount<Maxgeneration; ++genCount){
-
-            //create new offspring
-            //reprotwo(population);
-            
-            //look for mutations.
-            mutation(population);
-            
-            
-            //std::cout<<genCount<<" is done "<<std::endl;
-            //std::cout<<"population size = "<<population.size()<<std::endl;
-            for(int i = 0; i<population.size();++i){
-                 std::cout<<"individual  =  "<<i<<std::endl;
-                 std::cout<<"genome = "<<std::endl;
-                 for(int j = 0;j<population[i].genome.size();++j){
-                     std::cout<<population[i].genome[j]<<", ";
-                 }
-                 std::cout<<"\n";
-                std::cout<<"interaction matrix is = "<<std::endl;
-                for(int j = 0; j<population[i].interaction.size();++j){
-                    std::cout<<population[i].interaction[j][0]<<"   "<<population[i].interaction[j][1]<<std::endl;
-                }
-                 std::cout<<"\n";
-                std::cout<<"\n";
-            }
-            std::cout<<"\n";
-            std::cout<<"\n";
-            std::cout<<"\n";
-            std::cout<<"\n";
-        }
-        std::cout<<"generation calc is done"<<std::endl;
-        std::cout<<"population size = "<<population.size()<<std::endl;
-        
-        
-        
-        
-        // CALCULATE THE FREQUENCIES OF EXPRESSION VALUES ***************************************************
-        // create two vectors. One for calculating the phenotype with epistasis and one for calculating the phenotype without epistasis.
-        std::vector<double> phenotype(population.size(),0.0);
-        std::vector<double> phenotypeAdd(population.size(),0.0);
-        std::vector<int>    frequency(maxphenotype,0);
-        std::vector<int>    frequencyAdd(maxphenotype,0);
-        
-        switch (direction) {
-            case 1:
-                nondInteraction(population, phenotype,frequency);
-                break;
-            case 2:
-                direcInteraction(population, phenotype,frequency);
-                break;
-            default:
-                throw std::logic_error("integer for type of direction is incorrect \n");
-                break;
-        }
-        
-        additivemodel(population, phenotypeAdd,frequencyAdd);
         
         // OUTPUT TO FILE OPEN**********************************************************
         //open a output file.
@@ -607,13 +569,73 @@ int main() {
             throw std::runtime_error("unable to open file output.csv \n");
         }
         
+        
+        // LET TE POPULATION EVOLVE BY CREATING NEW GENERATIONS ********************************************
+        //To get to a gaussian distribution, we need to let the population evolve...
+
+        
+        for(int genCount = 0; genCount<Maxgeneration; ++genCount){
+            std::cout<<"fitness in generation "<<genCount<<"  = "<<std::endl;
+            for(int i = 0; i<population.size();++i){
+                std::cout<<population[i].fitness<<"  ";
+            }
+            std::cout<<"\n";
+            
+            //create new offspring
+            reprotwo(population);
+            
+            //look for mutations.
+            mutation(population);
+            
+            // create four vectors. two for calculating the phenotype with epistasis and two for calculating the phenotype without epistasis.
+            std::vector<double> phenotype(population.size(),0.0);
+            std::vector<double> phenotypeAdd(population.size(),0.0);
+            std::vector<int>    frequency(maxphenotype,0);
+            std::vector<int>    frequencyAdd(maxphenotype,0);
+            
+            switch (direction) {
+                case 1:
+                    nondInteraction(population, phenotype,frequency);
+                    break;
+                case 2:
+                    direcInteraction(population, phenotype,frequency);
+                    break;
+                default:
+                    throw std::logic_error("integer for type of direction is incorrect \n");
+                    break;
+            }
+            
+            additivemodel(population, phenotypeAdd,frequencyAdd);
+            
+            
+            calcfitness(population, phenotype);
+       
+            
+            ofs<<"generation  = ,"<<genCount<<"\n";
+            ofs<<"Phenotype,,Additive model,,Epistasis model \n";
+            for(int i = 0; i<frequency.size();++i){
+                ofs<<i+1<<",,"<<frequencyAdd[i]<<",,"<<frequency[i]<<"\n";
+            }
+            ofs<<"\n";
+            ofs<<"\n";
+            ofs<<"\n";
+            
+            
+            
+            
+            
+            std::cout<<genCount<<" is done "<<std::endl;
+            std::cout<<"population size = "<<population.size()<<std::endl;
+
+        }
+        std::cout<<"generation calc is done"<<std::endl;
+        std::cout<<"population size = "<<population.size()<<std::endl;
+        
+        
         //put the phenotype values to excel in order to make
         //for(int i = 0; i<population.size();++i){
         //    ofs<<i+1<<","<<phenotypeAdd[i]<<","<<phenotype[i]<<"\n";
         //}
-        for(int i = 0; i<frequency.size();++i){
-            ofs<<i+1<<",,"<<frequencyAdd[i]<<",,"<<frequency[i]<<"\n";
-        }
         
         // PRINT TO COMPUTER TO CHECK THE DATA **********************************************************
        // for(int i = 0; i<population.size();++i){
