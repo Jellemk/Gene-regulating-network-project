@@ -13,19 +13,19 @@
 #include <fstream>
 
 // GENERAL PARAMETERS
-const int genomelength = 10;
-const int N = 20;
-const int Maxgeneration = 20;
+const int genomelength = 100;
+const int N =1000;
+const int Maxgeneration = 41;
 const double meanoffspring = 2.5;
-const double k =    1.0;
+const double k =    0.0;
 
 // CALC FITNESS PARAMETERS
-const double Popt = 5.0;
-const double omega = 5.0;
+const double Popt = 50.0;
+const double omega = 10.0;
 const double metacosts = 0.002;
 
 // PHENOTYPE CALC PARAMETER
-const int maxphenotype = 20;
+const int maxphenotype = 115;
 
 //TYPES OF EPISTASIS
 const int direction = 1;
@@ -39,20 +39,20 @@ const int typeInteraction = 2;
 
 
 //RATES MUTATIONS
-const double mutationrate = 0.01;
-const double rpoint = 0.1;
-const double rdelete = 0.2;
-const double rrecruit = 0.1;
-const double rdupli = 0.1;
-const double rrecruitepi = 0.2;
-const double rdeleteepi = 0.1;
+const double mutationrate = 0.1;
+const double rpoint = 0.15;
+const double rdelete = 0.3;
+const double rrecruit = 0.15;
+const double rdupli = 0.15;
+const double rrecruitepi = 0.3;
+const double rdeleteepi = 0.15;
 
 
 struct Individual {
     std::vector<double> genome;
-    std::vector<std::vector<double> > interaction;
+    std::vector<std::vector<int> > interaction;
     std::vector<double> nodedegree;
-    double fitness;
+    long double fitness;
 };
 
 
@@ -73,8 +73,8 @@ void reprotwo(std::vector<Individual> &population){
     
     //check for every individual how many offspring they will produce.
     for(int i = 0; i<population.size();++i){
-        
-        std::poisson_distribution<int> poisson(meanoffspring*population[i].fitness);
+        long double meanpoisson = meanoffspring*population[i].fitness;
+        std::poisson_distribution<int> poisson(meanpoisson);
         int event;
         for(;;){
             event = poisson(rng);
@@ -82,7 +82,13 @@ void reprotwo(std::vector<Individual> &population){
         }
         
         if(event>0){
-            Individual newindividual = {population[i].genome,population[i].interaction,population[i].nodedegree,population[i].fitness};
+            std::vector<double> genomeoff = population[i].genome;
+            std::vector<std::vector<int> > interactoff = population[i].interaction;
+            std::vector<double> nodeoff = population[i].nodedegree;
+            long double fitoff = population[i].fitness;
+            
+            Individual newindividual = {genomeoff,interactoff,nodeoff,fitoff};
+            
             for(int j = 0; j<event;++j){
                 newpopulation.push_back(newindividual);
             }
@@ -92,40 +98,50 @@ void reprotwo(std::vector<Individual> &population){
     }
     //update population
     population = newpopulation;
+    
 }
 
 
 
-inline void mutapoint(std::vector<Individual> &population, const int &i, const int &j){
+inline void mutapoint(std::vector<Individual> &population, int i, int j){
     if(population[i].genome[j]==1){
         population[i].genome[j] = 0;
     } else if (population[i].genome[j]==0){
         population[i].genome[j] = 1;
     } else{
+        std::cout<<"allele = "<<population[i].genome[j]<<std::endl; 
         throw std::logic_error("state of gene is neither 0 or 1. \n");
     }
+    
+    
 }
 
-void mutadelete(std::vector<Individual> &population, const int &i, const int &j){
+void mutadelete(std::vector<Individual> &population, int i, int j){
     //delete gene from genome vector and nodedegree vector.
     population[i].genome.erase(population[i].genome.begin()+j);
     population[i].nodedegree.erase(population[i].nodedegree.begin()+j);
     
-    
     //erase interaction if it is connected with the lost gene and lower by one if is higher than lost gene --> resync interaction matrix.
+
+    
     for(int q = 0; q<population[i].interaction.size();++q){
         if(population[i].interaction[q][0]== j || population[i].interaction[q][1]== j){
             population[i].interaction.erase(population[i].interaction.begin()+q);
-        } else if(population[i].interaction[q][0]>j){
+        }
+    }
+    for(int q = 0; q<population[i].interaction.size();++q){
+        if(population[i].interaction[q][0]>j) {
             --population[i].interaction[q][0];
-        } else if (population[i].interaction[q][1]>j){
+        }
+        if (population[i].interaction[q][1]>j) {
             --population[i].interaction[q][1];
         }
-        
     }
+ 
+    
 }
 
-inline void mutarecruit(std::vector<Individual> &population, const int &i){
+inline void mutarecruit(std::vector<Individual> &population, int i){
     //obtain seed from system clock
     std::chrono::high_resolution_clock::time_point tp =
     std::chrono::high_resolution_clock::now();
@@ -136,21 +152,26 @@ inline void mutarecruit(std::vector<Individual> &population, const int &i){
     // std::clog<<"random seed : "<<seed<<"\n";
     rng.seed(seed);
     
+    
     std::bernoulli_distribution chooseallele(0.5);
     int newallele = chooseallele(rng);
     
     population[i].genome.push_back(newallele);
     population[i].nodedegree.push_back(0.0);
+    
 }
 
 
-inline void mutadupli(std::vector<Individual> &population, const int &i, const int &j){
+inline void mutadupli(std::vector<Individual> &population, int i, int j){
     population[i].genome.push_back(population[i].genome[j]);
     population[i].nodedegree.push_back(population[i].nodedegree[j]);
+    
 }
 
 
-void mutarecruitepi(std::vector<Individual> &population, const int &i, const int &j){
+
+void mutarecruitepi(std::vector<Individual> &population, int i, int j){
+
     //obtain seed from system clock
     std::chrono::high_resolution_clock::time_point tp =
     std::chrono::high_resolution_clock::now();
@@ -173,9 +194,11 @@ void mutarecruitepi(std::vector<Individual> &population, const int &i, const int
         attachprob.push_back(pow((population[i].nodedegree[q]+1)/(totaldegree+population[i].nodedegree.size()), k));
     }
 
+    
     // create distribution for pulling node with who to connect.
     std::discrete_distribution<int> chooseNode(attachprob.begin(),attachprob.end());
     
+  
     
     //check if interaction is already present.
     std::vector<int> checkexist;
@@ -186,6 +209,7 @@ void mutarecruitepi(std::vector<Individual> &population, const int &i, const int
             checkexist.push_back(population[i].interaction[q][0]);
         }
     }
+
     
     
     // choose node but not the same as itself.
@@ -199,25 +223,29 @@ void mutarecruitepi(std::vector<Individual> &population, const int &i, const int
         }
         if(attachnode != j && exist == false)break;
     }
+    if(attachnode == j)
+        throw std::logic_error("attached node is same as connecting gene \n");
+
     
     
+    //double dj = static_cast<double>(j);
+    //double dattachnode = static_cast<double>(attachnode);
     
-    double dj = static_cast<double>(j);
-    double dattachnode = static_cast<double>(attachnode);
-    
-    std::vector<double> newinteraction = {dj,dattachnode};
+    std::vector<int> newinteraction = {j,attachnode};
     population[i].interaction.push_back(newinteraction);
+    
     
     // update node degreee vec
     
     population[i].nodedegree[j] += 1;
     population[i].nodedegree[attachnode] += 1;
     
+    
 }
 
 
 
-void mutadeleteepi(std::vector<Individual> &population, const int &i, const int &j){
+void mutadeleteepi(std::vector<Individual> &population, int i, int j){
     //obtain seed from system clock
     std::chrono::high_resolution_clock::time_point tp =
     std::chrono::high_resolution_clock::now();
@@ -238,6 +266,7 @@ void mutadeleteepi(std::vector<Individual> &population, const int &i, const int 
         }
     }
     
+    
     if(epistore.size()!=0){
         std::discrete_distribution<int> deleteepi(epiweights.begin(),epiweights.end());
         int loseID = deleteepi(rng)
@@ -246,7 +275,6 @@ void mutadeleteepi(std::vector<Individual> &population, const int &i, const int 
         population[i].nodedegree[population[i].interaction[epistore[loseID]][1]] -= 1;
         population[i].interaction.erase(population[i].interaction.begin()+(epistore[loseID]));
     }
-    
 
 }
 
@@ -443,7 +471,8 @@ void additivemodel(std::vector<Individual> &population, std::vector<double> &phe
    // for(int i = 0; i<population.size();++i){
   //      std::cout<<phenotypeAdd[i]<<std::endl;
   //  }
-};
+    
+}
 
 void mutation(std::vector<Individual> &population){
     //obtain seed from system clock
@@ -464,6 +493,7 @@ void mutation(std::vector<Individual> &population){
         for(int j =0; j<population[i].genome.size();++j){
             if(mutationprob(rng)){
                 int mutationtype = determinemutation(rng);
+                
                 
                 switch (mutationtype) {
                     case 0: //point mutation
@@ -499,7 +529,16 @@ void mutation(std::vector<Individual> &population){
 inline void calcfitness(std::vector<Individual> &population, const std::vector<double> &phenotype){
     for(int i = 0; i<population.size();++i){
         double L = std::count(population[i].genome.begin(), population[i].genome.end(), 0.0);
-        population[i].fitness = exp(-(pow((phenotype[i]-Popt), 2.0)/(2*pow(omega, 2.0)))) - L*metacosts;
+        double fitness = exp(-(pow((phenotype[i]-Popt), 2.0)/(2*pow(omega, 2.0)))) - L*metacosts;
+        if(fitness<0.0){
+            std::cout<<"fitness below 0!"<<std::endl;
+            population[i].fitness = 0.0;
+        } else if (fitness>1.0){
+            std::cout<<"fitness above 1! "<<std::endl;
+            population[i].fitness = 1.0;
+        } else {
+            population[i].fitness = fitness;
+        }
     }
 }
 
@@ -546,8 +585,7 @@ int main() {
  
         //DETERMINE EDGE ARCHITECTURE *********************************************************************
         // create matrix to store the interactions in
-        std::vector<std::vector<double> > interaction(0);
-        std::cout<<"interaction size = "<<interaction.size()<<std::endl;
+        std::vector<std::vector<int> > interaction(0);
         std::vector<double> nodedegree(genomelength,0.0);
         double W = 1.0;
         
@@ -568,19 +606,16 @@ int main() {
         if(!ofs.is_open()){
             throw std::runtime_error("unable to open file output.csv \n");
         }
+        ofs<<"generation,,population size,,average genes,,average active genes,,average interactions \n";
         
         
         // LET TE POPULATION EVOLVE BY CREATING NEW GENERATIONS ********************************************
         //To get to a gaussian distribution, we need to let the population evolve...
-
+        
+        
         
         for(int genCount = 0; genCount<Maxgeneration; ++genCount){
-            std::cout<<"fitness in generation "<<genCount<<"  = "<<std::endl;
-            for(int i = 0; i<population.size();++i){
-                std::cout<<population[i].fitness<<"  ";
-            }
-            std::cout<<"\n";
-            
+      
             //create new offspring
             reprotwo(population);
             
@@ -606,30 +641,79 @@ int main() {
             }
             
             //additivemodel(population, phenotypeAdd,frequencyAdd);
+            std::vector<double> genomeactive(population.size(),0.0);
+            std::vector<double> genometotal(population.size(),0.0);
+            std::vector<double> interacttotal(population.size(),0.0);
             
+            
+            
+            for(int i = 0; i <population.size();++i){
+                genometotal[i] = population[i].genome.size();
+                genomeactive[i] = std::count(population[i].genome.begin(), population[i].genome.end(), 1);
+                interacttotal[i] = population[i].interaction.size();
+            }
+            
+            for(int i = 0; i<population.size();++i){
+            }
+            
+            double averagetotal = std::accumulate(genometotal.begin(), genometotal.end(), 0.0)/genometotal.size();
+           
+            double averageactive = std::accumulate(genomeactive.begin(), genomeactive.end(), 0.0)/genomeactive.size();
+            
+            double  interactionaverage = std::accumulate(interacttotal.begin(), interacttotal.end(), 0.0)/interacttotal.size();
             
             calcfitness(population, phenotype);
        
+            //for(int i = 0; i<population.size();++i){
+            //    std::cout<<"individual  =  "<<i<<std::endl;
+            //    std::cout<<"genome = "<<std::endl;
+            //    for(int j = 0;j<population[i].genome.size();++j){
+            //        std::cout<<population[i].genome[j]<<", ";
+            //    }
+            //    std::cout<<"\n";
+            //    std::cout<<"interaction matrix = "<<std::endl;
+            //    for(int j = 0; j<population[i].interaction.size();++j){
+            //        if(population[i].interaction[j].size() != 2){
+            //            std::cout<<"empty vec in gen control "<<std::endl;
+            //        } else {
+            //            std::cout<<population[i].interaction[j][0]<<"   "<<population[i].interaction[j][1]<<std::endl;
+            //        }
+            //   }
+                
+            // }
+           // std::cout<<"\n";
+            //std::cout<<"\n";
             
-            ofs<<"generation  = ,"<<genCount<<"\n";
-            ofs<<"Phenotype,,Additive model,,Epistasis model \n";
-            for(int i = 0; i<frequency.size();++i){
-                ofs<<i+1<<",,"<<frequency[i]<<"\n";
+            ofs<<genCount<<",,"<<population.size()<<",,"<<averagetotal<<",,"<<averageactive<<",,"<<interactionaverage<<"\n";
+            
+            ofs<<"\n";
+            ofs<<"\n";
+            ofs<<"\n";
+            if(genCount== (Maxgeneration-1)){
+                for(int i = 0; i<frequency.size();++i){
+                    ofs<<i+1<<",,"<<frequency[i]<<"\n";
+                }
             }
             ofs<<"\n";
-            ofs<<"\n";
-            ofs<<"\n";
-            
-            
-            
+          
+            // for(int i = 0;i<population.size();++i){
+            //    std::cout<<"fitness of "<<i<<" =  "<<population[i].fitness<<std::endl;
+            //    std::cout<<"interact size of "<<i<<" =  "<<population[i].interaction.size()<<std::endl;
+            //    std::cout<<"genome size of "<<i<<" =  "<<population[i].genome.size()<<std::endl;
+            //    std::cout<<"nodedegree size of "<<i<<" =  "<<population[i].nodedegree.size()<<std::endl;
+            //}
             
             
             std::cout<<genCount<<" is done "<<std::endl;
+            std::cout<<"average genes = "<<averagetotal<<std::endl;
+            std::cout<<"average active genes = "<<averageactive<<std::endl;
+            std::cout<<"average interactions = "<<interactionaverage<<std::endl;
             std::cout<<"population size = "<<population.size()<<std::endl;
+            std::cout<<"\n";
 
         }
         std::cout<<"generation calc is done"<<std::endl;
-        std::cout<<"population size = "<<population.size()<<std::endl;
+        
         
         
         //put the phenotype values to excel in order to make
