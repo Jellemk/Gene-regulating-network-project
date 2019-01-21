@@ -15,8 +15,8 @@
 // GENERAL PARAMETERS
 const int genomelength = 100;
 const int N =1000;
-const int Maxgeneration = 41;
-const double meanoffspring = 2.5;
+const int Maxgeneration = 120;
+const double meanoffspring = 2.0;
 const double k =    0.0;
 
 // CALC FITNESS PARAMETERS
@@ -25,13 +25,13 @@ const double omega = 10.0;
 const double metacosts = 0.002;
 
 // PHENOTYPE CALC PARAMETER
-const int maxphenotype = 115;
+const int maxphenotype = 100;
 
 //TYPES OF EPISTASIS
 const int direction = 1;
 //1 - non-directional
 //2 - directional
-const int typeInteraction = 2;
+const int typeInteraction = 1;
 //NON-DIRECTIONAL                           DIRECTIONAL
 //1 - Recessive Epistasis                   1 - recessive inhibitory epistasis
 //2 - Dominant Epistasis                    2 - Dominant inhibitory epistasis
@@ -686,15 +686,16 @@ int main() {
             
             ofs<<genCount<<",,"<<population.size()<<",,"<<averagetotal<<",,"<<averageactive<<",,"<<interactionaverage<<"\n";
             
-            ofs<<"\n";
-            ofs<<"\n";
-            ofs<<"\n";
+          
             if(genCount== (Maxgeneration-1)){
+                ofs<<"\n";
+                ofs<<"\n";
+                ofs<<"\n";
                 for(int i = 0; i<frequency.size();++i){
                     ofs<<i+1<<",,"<<frequency[i]<<"\n";
                 }
             }
-            ofs<<"\n";
+            
           
             // for(int i = 0;i<population.size();++i){
             //    std::cout<<"fitness of "<<i<<" =  "<<population[i].fitness<<std::endl;
